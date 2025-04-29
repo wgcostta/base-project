@@ -1,0 +1,1611 @@
+# Projeto Base Spring Boot para Case project
+
+Este projeto serve como uma base para o case técnico da project, implementando uma API REST para gerenciamento de contas e transações financeiras.
+
+## Estrutura do Projeto
+
+```
+project-case/
+├── src/
+│   ├── main/
+│   │   ├── java/
+│   │   │   └── com/
+│   │   │       └── project/
+│   │   │           └── case/
+│   │   │               ├── projectCaseApplication.java
+│   │   │               ├── config/
+│   │   │               │   └── AppConfig.java
+│   │   │               ├── controller/
+│   │   │               │   ├── AccountController.java
+│   │   │               │   └── TransactionController.java
+│   │   │               ├── dto/
+│   │   │               │
+
+// pom.xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" 
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 
+                             https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.2.3</version>
+        <relativePath/>
+    </parent>
+    
+    <groupId>com.project</groupId>
+    <artifactId>project-case</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <name>project-case</name>
+    <description>Demo project for project Case</description>
+    
+    <properties>
+        <java.version>17</java.version>
+        <testcontainers.version>1.19.5</testcontainers.version>
+    </properties>
+    
+    <dependencies>
+        <!-- Spring Boot Starters -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        
+        <!-- Database -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+        
+        <!-- Testing -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+    
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers-bom</artifactId>
+                <version>${testcontainers.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+    
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.10</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+
+// src/main/java/com/project/case/projectCaseApplication.java
+package com.project.case;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class projectCaseApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(projectCaseApplication.class, args);
+    }
+}
+
+// src/main/java/com/project/case/config/AppConfig.java
+package com.project.case.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+@Configuration
+public class AppConfig {
+
+    @Bean
+    public WebMvcConfigurer corsConfigurer() {
+        return new WebMvcConfigurer() {
+            @Override
+            public void addCorsMappings(CorsRegistry registry) {
+                registry.addMapping("/**")
+                        .allowedOrigins("*")
+                        .allowedMethods("GET", "POST", "PUT", "DELETE")
+                        .allowedHeaders("*");
+            }
+        };
+    }
+}
+
+// src/main/java/com/project/case/model/Account.java
+package com.project.case.model;
+
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@Entity
+@Table(name = "accounts")
+public class Account {
+    
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
+    
+    @Column(nullable = false)
+    private String name;
+    
+    @Column(nullable = false, unique = true)
+    private String documentNumber;
+    
+    @Column(nullable = false)
+    @Builder.Default
+    private BigDecimal balance = BigDecimal.ZERO;
+    
+    @Column(nullable = false)
+    @Builder.Default
+    private LocalDateTime createdAt = LocalDateTime.now();
+    
+    @OneToMany(mappedBy = "account", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<Transaction> transactions = new ArrayList<>();
+}
+
+// src/main/java/com/project/case/model/Transaction.java
+package com.project.case.model;
+
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@Entity
+@Table(name = "transactions")
+public class Transaction {
+    
+    public enum Type {
+        DEPOSIT, WITHDRAWAL, TRANSFER
+    }
+    
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "account_id", nullable = false)
+    private Account account;
+    
+    @Column(nullable = false)
+    private BigDecimal amount;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Type type;
+    
+    private String description;
+    
+    @Column(nullable = false)
+    @Builder.Default
+    private LocalDateTime createdAt = LocalDateTime.now();
+}
+
+// src/main/java/com/project/case/dto/AccountDTO.java
+package com.project.case.dto;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+public class AccountDTO {
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Request {
+        @NotBlank(message = "Name is required")
+        private String name;
+        
+        @NotBlank(message = "Document number is required")
+        @Pattern(regexp = "^\\d{11}$|^\\d{14}$", message = "Document number must be CPF (11 digits) or CNPJ (14 digits)")
+        private String documentNumber;
+    }
+    
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Response {
+        private UUID id;
+        private String name;
+        private String documentNumber;
+        private BigDecimal balance;
+        private LocalDateTime createdAt;
+    }
+}
+
+// src/main/java/com/project/case/dto/TransactionDTO.java
+package com.project.case.dto;
+
+import com.project.case.model.Transaction;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+public class TransactionDTO {
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Request {
+        @NotNull(message = "Amount is required")
+        @Positive(message = "Amount must be positive")
+        private BigDecimal amount;
+        
+        @NotNull(message = "Transaction type is required")
+        private Transaction.Type type;
+        
+        private String description;
+    }
+    
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Response {
+        private UUID id;
+        private UUID accountId;
+        private BigDecimal amount;
+        private Transaction.Type type;
+        private String description;
+        private LocalDateTime createdAt;
+    }
+}
+
+// src/main/java/com/project/case/dto/ErrorResponseDTO.java
+package com.project.case.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class ErrorResponseDTO {
+    private int status;
+    private String message;
+    private List<String> errors;
+    @Builder.Default
+    private LocalDateTime timestamp = LocalDateTime.now();
+}
+
+// src/main/java/com/project/case/exception/ResourceNotFoundException.java
+package com.project.case.exception;
+
+public class ResourceNotFoundException extends RuntimeException {
+    
+    public ResourceNotFoundException(String message) {
+        super(message);
+    }
+    
+    public ResourceNotFoundException(String resourceName, String fieldName, Object fieldValue) {
+        super(String.format("%s not found with %s : '%s'", resourceName, fieldName, fieldValue));
+    }
+}
+
+// src/main/java/com/project/case/exception/GlobalExceptionHandler.java
+package com.project.case.exception;
+
+import com.project.case.dto.ErrorResponseDTO;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.WebRequest;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ErrorResponseDTO> handleResourceNotFoundException(
+            ResourceNotFoundException ex, WebRequest request) {
+        
+        ErrorResponseDTO errorDetails = ErrorResponseDTO.builder()
+                .status(HttpStatus.NOT_FOUND.value())
+                .message("Resource not found")
+                .errors(List.of(ex.getMessage()))
+                .build();
+        
+        return new ResponseEntity<>(errorDetails, HttpStatus.NOT_FOUND);
+    }
+    
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ErrorResponseDTO> handleValidationExceptions(
+            MethodArgumentNotValidException ex) {
+        
+        List<String> errors = ex.getBindingResult()
+                .getFieldErrors()
+                .stream()
+                .map(FieldError::getDefaultMessage)
+                .collect(Collectors.toList());
+        
+        ErrorResponseDTO errorDetails = ErrorResponseDTO.builder()
+                .status(HttpStatus.BAD_REQUEST.value())
+                .message("Validation error")
+                .errors(errors)
+                .build();
+        
+        return new ResponseEntity<>(errorDetails, HttpStatus.BAD_REQUEST);
+    }
+    
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponseDTO> handleGlobalException(
+            Exception ex, WebRequest request) {
+        
+        ErrorResponseDTO errorDetails = ErrorResponseDTO.builder()
+                .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                .message("An unexpected error occurred")
+                .errors(List.of(ex.getMessage()))
+                .build();
+        
+        return new ResponseEntity<>(errorDetails, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+}
+
+// src/main/java/com/project/case/repository/AccountRepository.java
+package com.project.case.repository;
+
+import com.project.case.model.Account;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.Optional;
+import java.util.UUID;
+
+@Repository
+public interface AccountRepository extends JpaRepository<Account, UUID> {
+    boolean existsByDocumentNumber(String documentNumber);
+    Optional<Account> findByDocumentNumber(String documentNumber);
+}
+
+// src/main/java/com/project/case/repository/TransactionRepository.java
+package com.project.case.repository;
+
+import com.project.case.model.Transaction;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.UUID;
+
+@Repository
+public interface TransactionRepository extends JpaRepository<Transaction, UUID> {
+    Page<Transaction> findByAccountId(UUID accountId, Pageable pageable);
+}
+
+// src/main/java/com/project/case/service/AccountService.java
+package com.project.case.service;
+
+import com.project.case.dto.AccountDTO;
+import com.project.case.exception.ResourceNotFoundException;
+import com.project.case.model.Account;
+import com.project.case.repository.AccountRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.UUID;
+
+@Service
+@RequiredArgsConstructor
+public class AccountService {
+    
+    private final AccountRepository accountRepository;
+    
+    @Transactional
+    public AccountDTO.Response createAccount(AccountDTO.Request request) {
+        if (accountRepository.existsByDocumentNumber(request.getDocumentNumber())) {
+            throw new DataIntegrityViolationException("Account with document number " + request.getDocumentNumber() + " already exists");
+        }
+        
+        Account account = Account.builder()
+                .name(request.getName())
+                .documentNumber(request.getDocumentNumber())
+                .build();
+        
+        Account savedAccount = accountRepository.save(account);
+        
+        return mapToAccountResponse(savedAccount);
+    }
+    
+    @Transactional(readOnly = true)
+    public AccountDTO.Response getAccountById(UUID id) {
+        Account account = findAccountById(id);
+        return mapToAccountResponse(account);
+    }
+    
+    @Transactional(readOnly = true)
+    public Page<AccountDTO.Response> getAllAccounts(Pageable pageable) {
+        return accountRepository.findAll(pageable)
+                .map(this::mapToAccountResponse);
+    }
+    
+    @Transactional
+    public AccountDTO.Response updateAccount(UUID id, AccountDTO.Request request) {
+        Account account = findAccountById(id);
+        
+        account.setName(request.getName());
+        // Não atualizamos o documento pois seria uma chave de negócio
+        
+        Account updatedAccount = accountRepository.save(account);
+        
+        return mapToAccountResponse(updatedAccount);
+    }
+    
+    public Account findAccountById(UUID id) {
+        return accountRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Account", "id", id));
+    }
+    
+    private AccountDTO.Response mapToAccountResponse(Account account) {
+        return AccountDTO.Response.builder()
+                .id(account.getId())
+                .name(account.getName())
+                .documentNumber(account.getDocumentNumber())
+                .balance(account.getBalance())
+                .createdAt(account.getCreatedAt())
+                .build();
+    }
+}
+
+// src/main/java/com/project/case/service/TransactionService.java
+package com.project.case.service;
+
+import com.project.case.dto.TransactionDTO;
+import com.project.case.exception.ResourceNotFoundException;
+import com.project.case.model.Account;
+import com.project.case.model.Transaction;
+import com.project.case.repository.TransactionRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.util.UUID;
+
+@Service
+@RequiredArgsConstructor
+public class TransactionService {
+    
+    private final TransactionRepository transactionRepository;
+    private final AccountService accountService;
+    
+    @Transactional
+    public TransactionDTO.Response createTransaction(UUID accountId, TransactionDTO.Request request) {
+        Account account = accountService.findAccountById(accountId);
+        
+        // Tratamento baseado no tipo de transação
+        switch (request.getType()) {
+            case DEPOSIT:
+                account.setBalance(account.getBalance().add(request.getAmount()));
+                break;
+            case WITHDRAWAL:
+                if (account.getBalance().compareTo(request.getAmount()) < 0) {
+                    throw new IllegalArgumentException("Insufficient funds");
+                }
+                account.setBalance(account.getBalance().subtract(request.getAmount()));
+                break;
+            case TRANSFER:
+                // Para simplificar, estamos considerando TRANSFER como um saque
+                if (account.getBalance().compareTo(request.getAmount()) < 0) {
+                    throw new IllegalArgumentException("Insufficient funds for transfer");
+                }
+                account.setBalance(account.getBalance().subtract(request.getAmount()));
+                break;
+            default:
+                throw new IllegalArgumentException("Invalid transaction type");
+        }
+        
+        Transaction transaction = Transaction.builder()
+                .account(account)
+                .amount(request.getAmount())
+                .type(request.getType())
+                .description(request.getDescription())
+                .build();
+        
+        Transaction savedTransaction = transactionRepository.save(transaction);
+        
+        return mapToTransactionResponse(savedTransaction);
+    }
+    
+    @Transactional(readOnly = true)
+    public TransactionDTO.Response getTransactionById(UUID id) {
+        Transaction transaction = transactionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Transaction", "id", id));
+        
+        return mapToTransactionResponse(transaction);
+    }
+    
+    @Transactional(readOnly = true)
+    public Page<TransactionDTO.Response> getAccountTransactions(UUID accountId, Pageable pageable) {
+        // Verificar se a conta existe
+        accountService.findAccountById(accountId);
+        
+        return transactionRepository.findByAccountId(accountId, pageable)
+                .map(this::mapToTransactionResponse);
+    }
+    
+    private TransactionDTO.Response mapToTransactionResponse(Transaction transaction) {
+        return TransactionDTO.Response.builder()
+                .id(transaction.getId())
+                .accountId(transaction.getAccount().getId())
+                .amount(transaction.getAmount())
+                .type(transaction.getType())
+                .description(transaction.getDescription())
+                .createdAt(transaction.getCreatedAt())
+                .build();
+    }
+}
+
+// src/main/java/com/project/case/controller/AccountController.java
+package com.project.case.controller;
+
+import com.project.case.dto.AccountDTO;
+import com.project.case.service.AccountService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.UUID;
+
+@RestController
+@RequestMapping("/api/accounts")
+@RequiredArgsConstructor
+public class AccountController {
+    
+    private final AccountService accountService;
+    
+    @PostMapping
+    public ResponseEntity<AccountDTO.Response> createAccount(@Valid @RequestBody AccountDTO.Request request) {
+        return new ResponseEntity<>(accountService.createAccount(request), HttpStatus.CREATED);
+    }
+    
+    @GetMapping("/{id}")
+    public ResponseEntity<AccountDTO.Response> getAccountById(@PathVariable UUID id) {
+        return ResponseEntity.ok(accountService.getAccountById(id));
+    }
+    
+    @GetMapping
+    public ResponseEntity<Page<AccountDTO.Response>> getAllAccounts(Pageable pageable) {
+        return ResponseEntity.ok(accountService.getAllAccounts(pageable));
+    }
+    
+    @PutMapping("/{id}")
+    public ResponseEntity<AccountDTO.Response> updateAccount(
+            @PathVariable UUID id, 
+            @Valid @RequestBody AccountDTO.Request request) {
+        return ResponseEntity.ok(accountService.updateAccount(id, request));
+    }
+}
+
+// src/main/java/com/project/case/controller/TransactionController.java
+package com.project.case.controller;
+
+import com.project.case.dto.TransactionDTO;
+import com.project.case.service.TransactionService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.UUID;
+
+@RestController
+@RequestMapping("/api")
+@RequiredArgsConstructor
+public class TransactionController {
+    
+    private final TransactionService transactionService;
+    
+    @PostMapping("/accounts/{accountId}/transactions")
+    public ResponseEntity<TransactionDTO.Response> createTransaction(
+            @PathVariable UUID accountId,
+            @Valid @RequestBody TransactionDTO.Request request) {
+        return new ResponseEntity<>(
+                transactionService.createTransaction(accountId, request),
+                HttpStatus.CREATED);
+    }
+    
+    @GetMapping("/transactions/{id}")
+    public ResponseEntity<TransactionDTO.Response> getTransactionById(@PathVariable UUID id) {
+        return ResponseEntity.ok(transactionService.getTransactionById(id));
+    }
+    
+    @GetMapping("/accounts/{accountId}/transactions")
+    public ResponseEntity<Page<TransactionDTO.Response>> getAccountTransactions(
+            @PathVariable UUID accountId,
+            Pageable pageable) {
+        return ResponseEntity.ok(transactionService.getAccountTransactions(accountId, pageable));
+    }
+}
+
+// src/main/resources/application.yml
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/project
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    default-property-inclusion: non_null
+
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+logging:
+  level:
+    org.springframework: INFO
+    com.project: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+# src/main/resources/application-test.yml
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb
+    username: sa
+    password: password
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+# TESTES
+
+// src/test/java/com/project/case/repository/AccountRepositoryTest.java
+package com.project.case.repository;
+
+import com.project.case.model.Account;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.test.context.ActiveProfiles;
+
+import java.math.BigDecimal;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+@DataJpaTest
+@ActiveProfiles("test")
+class AccountRepositoryTest {
+
+    @Autowired
+    private AccountRepository accountRepository;
+
+    @Test
+    void shouldReturnFalseWhenDocumentNumberDoesNotExist() {
+        // Arrange
+        String documentNumber = "12345678901";
+
+        // Act
+        boolean exists = accountRepository.existsByDocumentNumber(documentNumber);
+
+        // Assert
+        assertThat(exists).isFalse();
+    }
+}
+
+// src/test/java/com/project/case/repository/TransactionRepositoryTest.java
+package com.project.case.repository;
+
+import com.project.case.model.Account;
+import com.project.case.model.Transaction;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.test.context.ActiveProfiles;
+
+import java.math.BigDecimal;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+@DataJpaTest
+@ActiveProfiles("test")
+class TransactionRepositoryTest {
+
+    @Autowired
+    private TransactionRepository transactionRepository;
+
+    @Autowired
+    private AccountRepository accountRepository;
+
+    private Account account;
+
+    @BeforeEach
+    void setUp() {
+        account = Account.builder()
+                .name("Test User")
+                .documentNumber("12345678901")
+                .balance(BigDecimal.ZERO)
+                .build();
+        accountRepository.save(account);
+    }
+
+    @Test
+    void shouldSaveTransaction() {
+        // Arrange
+        Transaction transaction = Transaction.builder()
+                .account(account)
+                .amount(new BigDecimal("100.00"))
+                .type(Transaction.Type.DEPOSIT)
+                .description("Initial deposit")
+                .build();
+
+        // Act
+        Transaction savedTransaction = transactionRepository.save(transaction);
+
+        // Assert
+        assertThat(savedTransaction).isNotNull();
+        assertThat(savedTransaction.getId()).isNotNull();
+        assertThat(savedTransaction.getAmount()).isEqualByComparingTo(new BigDecimal("100.00"));
+        assertThat(savedTransaction.getType()).isEqualTo(Transaction.Type.DEPOSIT);
+        assertThat(savedTransaction.getDescription()).isEqualTo("Initial deposit");
+    }
+
+    @Test
+    void shouldFindByAccountId() {
+        // Arrange
+        Transaction transaction1 = Transaction.builder()
+                .account(account)
+                .amount(new BigDecimal("100.00"))
+                .type(Transaction.Type.DEPOSIT)
+                .description("First deposit")
+                .build();
+
+        Transaction transaction2 = Transaction.builder()
+                .account(account)
+                .amount(new BigDecimal("50.00"))
+                .type(Transaction.Type.WITHDRAWAL)
+                .description("First withdrawal")
+                .build();
+
+        transactionRepository.save(transaction1);
+        transactionRepository.save(transaction2);
+
+        // Act
+        Page<Transaction> transactions = transactionRepository.findByAccountId(
+                account.getId(), PageRequest.of(0, 10));
+
+        // Assert
+        assertThat(transactions).isNotNull();
+        assertThat(transactions.getTotalElements()).isEqualTo(2);
+        assertThat(transactions.getContent().get(0).getAmount()).isEqualByComparingTo(new BigDecimal("100.00"));
+        assertThat(transactions.getContent().get(1).getAmount()).isEqualByComparingTo(new BigDecimal("50.00"));
+    }
+}
+
+// src/test/java/com/project/case/service/AccountServiceTest.java
+package com.project.case.service;
+
+import com.project.case.dto.AccountDTO;
+import com.project.case.exception.ResourceNotFoundException;
+import com.project.case.model.Account;
+import com.project.case.repository.AccountRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+class AccountServiceTest {
+
+    @Mock
+    private AccountRepository accountRepository;
+
+    @InjectMocks
+    private AccountService accountService;
+
+    private Account account;
+    private AccountDTO.Request accountRequest;
+    private final UUID accountId = UUID.randomUUID();
+
+    @BeforeEach
+    void setUp() {
+        account = Account.builder()
+                .id(accountId)
+                .name("Test User")
+                .documentNumber("12345678901")
+                .balance(BigDecimal.ZERO)
+                .build();
+
+        accountRequest = new AccountDTO.Request("Test User", "12345678901");
+    }
+
+    @Test
+    void shouldCreateAccountSuccessfully() {
+        // Arrange
+        when(accountRepository.existsByDocumentNumber(accountRequest.getDocumentNumber())).thenReturn(false);
+        when(accountRepository.save(any(Account.class))).thenReturn(account);
+
+        // Act
+        AccountDTO.Response response = accountService.createAccount(accountRequest);
+
+        // Assert
+        assertThat(response).isNotNull();
+        assertThat(response.getId()).isEqualTo(accountId);
+        assertThat(response.getName()).isEqualTo(accountRequest.getName());
+        assertThat(response.getDocumentNumber()).isEqualTo(accountRequest.getDocumentNumber());
+        
+        verify(accountRepository).existsByDocumentNumber(accountRequest.getDocumentNumber());
+        verify(accountRepository).save(any(Account.class));
+    }
+
+    @Test
+    void shouldThrowExceptionWhenDocumentNumberExists() {
+        // Arrange
+        when(accountRepository.existsByDocumentNumber(accountRequest.getDocumentNumber())).thenReturn(true);
+
+        // Act & Assert
+        assertThatThrownBy(() -> accountService.createAccount(accountRequest))
+                .isInstanceOf(DataIntegrityViolationException.class)
+                .hasMessageContaining("already exists");
+        
+        verify(accountRepository).existsByDocumentNumber(accountRequest.getDocumentNumber());
+        verify(accountRepository, never()).save(any(Account.class));
+    }
+
+    @Test
+    void shouldReturnAccountById() {
+        // Arrange
+        when(accountRepository.findById(accountId)).thenReturn(Optional.of(account));
+
+        // Act
+        AccountDTO.Response response = accountService.getAccountById(accountId);
+
+        // Assert
+        assertThat(response).isNotNull();
+        assertThat(response.getId()).isEqualTo(accountId);
+        assertThat(response.getName()).isEqualTo(account.getName());
+        assertThat(response.getDocumentNumber()).isEqualTo(account.getDocumentNumber());
+        
+        verify(accountRepository).findById(accountId);
+    }
+
+    @Test
+    void shouldThrowExceptionWhenAccountNotFound() {
+        // Arrange
+        when(accountRepository.findById(accountId)).thenReturn(Optional.empty());
+
+        // Act & Assert
+        assertThatThrownBy(() -> accountService.getAccountById(accountId))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("Account not found");
+        
+        verify(accountRepository).findById(accountId);
+    }
+
+    @Test
+    void shouldReturnAllAccounts() {
+        // Arrange
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<Account> accountPage = new PageImpl<>(List.of(account));
+        when(accountRepository.findAll(pageable)).thenReturn(accountPage);
+
+        // Act
+        Page<AccountDTO.Response> response = accountService.getAllAccounts(pageable);
+
+        // Assert
+        assertThat(response).isNotNull();
+        assertThat(response.getTotalElements()).isEqualTo(1);
+        assertThat(response.getContent().get(0).getId()).isEqualTo(accountId);
+        
+        verify(accountRepository).findAll(pageable);
+    }
+
+    @Test
+    void shouldUpdateAccountSuccessfully() {
+        // Arrange
+        when(accountRepository.findById(accountId)).thenReturn(Optional.of(account));
+        when(accountRepository.save(any(Account.class))).thenReturn(account);
+
+        AccountDTO.Request updateRequest = new AccountDTO.Request("Updated User", "12345678901");
+
+        // Act
+        AccountDTO.Response response = accountService.updateAccount(accountId, updateRequest);
+
+        // Assert
+        assertThat(response).isNotNull();
+        assertThat(response.getName()).isEqualTo(updateRequest.getName());
+        
+        verify(accountRepository).findById(accountId);
+        verify(accountRepository).save(any(Account.class));
+    }
+}
+
+// src/test/java/com/project/case/service/TransactionServiceTest.java
+package com.project.case.service;
+
+import com.project.case.dto.TransactionDTO;
+import com.project.case.exception.ResourceNotFoundException;
+import com.project.case.model.Account;
+import com.project.case.model.Transaction;
+import com.project.case.repository.TransactionRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+class TransactionServiceTest {
+
+    @Mock
+    private TransactionRepository transactionRepository;
+
+    @Mock
+    private AccountService accountService;
+
+    @InjectMocks
+    private TransactionService transactionService;
+
+    private Account account;
+    private Transaction transaction;
+    private TransactionDTO.Request transactionRequest;
+    private final UUID accountId = UUID.randomUUID();
+    private final UUID transactionId = UUID.randomUUID();
+
+    @BeforeEach
+    void setUp() {
+        account = Account.builder()
+                .id(accountId)
+                .name("Test User")
+                .documentNumber("12345678901")
+                .balance(new BigDecimal("1000.00"))
+                .build();
+
+        transaction = Transaction.builder()
+                .id(transactionId)
+                .account(account)
+                .amount(new BigDecimal("100.00"))
+                .type(Transaction.Type.DEPOSIT)
+                .description("Test deposit")
+                .build();
+
+        transactionRequest = new TransactionDTO.Request(
+                new BigDecimal("100.00"),
+                Transaction.Type.DEPOSIT,
+                "Test deposit"
+        );
+    }
+
+    @Test
+    void shouldCreateDepositTransactionSuccessfully() {
+        // Arrange
+        when(accountService.findAccountById(accountId)).thenReturn(account);
+        when(transactionRepository.save(any(Transaction.class))).thenReturn(transaction);
+
+        // Act
+        TransactionDTO.Response response = transactionService.createTransaction(accountId, transactionRequest);
+
+        // Assert
+        assertThat(response).isNotNull();
+        assertThat(response.getId()).isEqualTo(transactionId);
+        assertThat(response.getAccountId()).isEqualTo(accountId);
+        assertThat(response.getAmount()).isEqualTo(transactionRequest.getAmount());
+        assertThat(response.getType()).isEqualTo(transactionRequest.getType());
+        
+        // Verify balance updated correctly for deposit
+        assertThat(account.getBalance()).isEqualByComparingTo(new BigDecimal("1100.00"));
+        
+        verify(accountService).findAccountById(accountId);
+        verify(transactionRepository).save(any(Transaction.class));
+    }
+
+    @Test
+    void shouldCreateWithdrawalTransactionSuccessfully() {
+        // Arrange
+        transactionRequest.setType(Transaction.Type.WITHDRAWAL);
+        transaction.setType(Transaction.Type.WITHDRAWAL);
+        
+        when(accountService.findAccountById(accountId)).thenReturn(account);
+        when(transactionRepository.save(any(Transaction.class))).thenReturn(transaction);
+
+        // Act
+        TransactionDTO.Response response = transactionService.createTransaction(accountId, transactionRequest);
+
+        // Assert
+        assertThat(response).isNotNull();
+        assertThat(response.getType()).isEqualTo(Transaction.Type.WITHDRAWAL);
+        
+        // Verify balance updated correctly for withdrawal
+        assertThat(account.getBalance()).isEqualByComparingTo(new BigDecimal("900.00"));
+        
+        verify(accountService).findAccountById(accountId);
+        verify(transactionRepository).save(any(Transaction.class));
+    }
+
+    @Test
+    void shouldThrowExceptionWhenInsufficientFundsForWithdrawal() {
+        // Arrange
+        account.setBalance(new BigDecimal("50.00"));
+        transactionRequest.setType(Transaction.Type.WITHDRAWAL);
+        
+        when(accountService.findAccountById(accountId)).thenReturn(account);
+
+        // Act & Assert
+        assertThatThrownBy(() -> transactionService.createTransaction(accountId, transactionRequest))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Insufficient funds");
+        
+        verify(accountService).findAccountById(accountId);
+        verify(transactionRepository, never()).save(any(Transaction.class));
+    }
+
+    @Test
+    void shouldReturnTransactionById() {
+        // Arrange
+        when(transactionRepository.findById(transactionId)).thenReturn(Optional.of(transaction));
+
+        // Act
+        TransactionDTO.Response response = transactionService.getTransactionById(transactionId);
+
+        // Assert
+        assertThat(response).isNotNull();
+        assertThat(response.getId()).isEqualTo(transactionId);
+        
+        verify(transactionRepository).findById(transactionId);
+    }
+
+    @Test
+    void shouldThrowExceptionWhenTransactionNotFound() {
+        // Arrange
+        when(transactionRepository.findById(transactionId)).thenReturn(Optional.empty());
+
+        // Act & Assert
+        assertThatThrownBy(() -> transactionService.getTransactionById(transactionId))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("Transaction not found");
+        
+        verify(transactionRepository).findById(transactionId);
+    }
+
+    @Test
+    void shouldReturnAccountTransactions() {
+        // Arrange
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<Transaction> transactionPage = new PageImpl<>(List.of(transaction));
+        
+        when(accountService.findAccountById(accountId)).thenReturn(account);
+        when(transactionRepository.findByAccountId(accountId, pageable)).thenReturn(transactionPage);
+
+        // Act
+        Page<TransactionDTO.Response> response = transactionService.getAccountTransactions(accountId, pageable);
+
+        // Assert
+        assertThat(response).isNotNull();
+        assertThat(response.getTotalElements()).isEqualTo(1);
+        assertThat(response.getContent().get(0).getId()).isEqualTo(transactionId);
+        
+        verify(accountService).findAccountById(accountId);
+        verify(transactionRepository).findByAccountId(accountId, pageable);
+    }
+}
+
+// src/test/java/com/project/case/controller/AccountControllerTest.java
+package com.project.case.controller;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.project.case.dto.AccountDTO;
+import com.project.case.exception.ResourceNotFoundException;
+import com.project.case.service.AccountService;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+@WebMvcTest(AccountController.class)
+class AccountControllerTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @MockBean
+    private AccountService accountService;
+
+    private AccountDTO.Request accountRequest;
+    private AccountDTO.Response accountResponse;
+    private final UUID accountId = UUID.randomUUID();
+
+    @BeforeEach
+    void setUp() {
+        accountRequest = new AccountDTO.Request("Test User", "12345678901");
+        
+        accountResponse = AccountDTO.Response.builder()
+                .id(accountId)
+                .name("Test User")
+                .documentNumber("12345678901")
+                .balance(BigDecimal.ZERO)
+                .createdAt(LocalDateTime.now())
+                .build();
+    }
+
+    @Test
+    void shouldCreateAccount() throws Exception {
+        // Arrange
+        given(accountService.createAccount(any(AccountDTO.Request.class))).willReturn(accountResponse);
+
+        // Act & Assert
+        mockMvc.perform(post("/api/accounts")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(accountRequest)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(accountId.toString()))
+                .andExpect(jsonPath("$.name").value("Test User"))
+                .andExpect(jsonPath("$.documentNumber").value("12345678901"));
+    }
+
+    @Test
+    void shouldReturnBadRequestWhenCreatingAccountWithInvalidData() throws Exception {
+        // Arrange
+        accountRequest.setName("");
+
+        // Act & Assert
+        mockMvc.perform(post("/api/accounts")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(accountRequest)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void shouldGetAccountById() throws Exception {
+        // Arrange
+        given(accountService.getAccountById(accountId)).willReturn(accountResponse);
+
+        // Act & Assert
+        mockMvc.perform(get("/api/accounts/{id}", accountId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(accountId.toString()))
+                .andExpect(jsonPath("$.name").value("Test User"));
+    }
+
+    @Test
+    void shouldReturnNotFoundWhenAccountDoesNotExist() throws Exception {
+        // Arrange
+        given(accountService.getAccountById(accountId))
+                .willThrow(new ResourceNotFoundException("Account", "id", accountId));
+
+        // Act & Assert
+        mockMvc.perform(get("/api/accounts/{id}", accountId))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void shouldGetAllAccounts() throws Exception {
+        // Arrange
+        given(accountService.getAllAccounts(any(Pageable.class)))
+                .willReturn(new PageImpl<>(List.of(accountResponse)));
+
+        // Act & Assert
+        mockMvc.perform(get("/api/accounts"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].id").value(accountId.toString()))
+                .andExpect(jsonPath("$.content[0].name").value("Test User"));
+    }
+
+    @Test
+    void shouldUpdateAccount() throws Exception {
+        // Arrange
+        AccountDTO.Response updatedResponse = AccountDTO.Response.builder()
+                .id(accountId)
+                .name("Updated User")
+                .documentNumber("12345678901")
+                .balance(BigDecimal.ZERO)
+                .createdAt(LocalDateTime.now())
+                .build();
+        
+        AccountDTO.Request updateRequest = new AccountDTO.Request("Updated User", "12345678901");
+        
+        when(accountService.updateAccount(eq(accountId), any(AccountDTO.Request.class)))
+                .thenReturn(updatedResponse);
+
+        // Act & Assert
+        mockMvc.perform(put("/api/accounts/{id}", accountId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(updateRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Updated User"));
+    }
+}
+
+// src/test/java/com/project/case/controller/TransactionControllerTest.java
+package com.project.case.controller;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.project.case.dto.TransactionDTO;
+import com.project.case.exception.ResourceNotFoundException;
+import com.project.case.model.Transaction;
+import com.project.case.service.TransactionService;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@WebMvcTest(TransactionController.class)
+class TransactionControllerTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @MockBean
+    private TransactionService transactionService;
+
+    private TransactionDTO.Request transactionRequest;
+    private TransactionDTO.Response transactionResponse;
+    private final UUID accountId = UUID.randomUUID();
+    private final UUID transactionId = UUID.randomUUID();
+
+    @BeforeEach
+    void setUp() {
+        transactionRequest = new TransactionDTO.Request(
+                new BigDecimal("100.00"),
+                Transaction.Type.DEPOSIT,
+                "Test deposit"
+        );
+        
+        transactionResponse = TransactionDTO.Response.builder()
+                .id(transactionId)
+                .accountId(accountId)
+                .amount(new BigDecimal("100.00"))
+                .type(Transaction.Type.DEPOSIT)
+                .description("Test deposit")
+                .createdAt(LocalDateTime.now())
+                .build();
+    }
+
+    @Test
+    void shouldCreateTransaction() throws Exception {
+        // Arrange
+        given(transactionService.createTransaction(eq(accountId), any(TransactionDTO.Request.class)))
+                .willReturn(transactionResponse);
+
+        // Act & Assert
+        mockMvc.perform(post("/api/accounts/{accountId}/transactions", accountId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(transactionRequest)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(transactionId.toString()))
+                .andExpect(jsonPath("$.accountId").value(accountId.toString()))
+                .andExpect(jsonPath("$.amount").value("100.0"))
+                .andExpect(jsonPath("$.type").value("DEPOSIT"));
+    }
+
+    @Test
+    void shouldReturnBadRequestWhenCreatingTransactionWithInvalidData() throws Exception {
+        // Arrange
+        transactionRequest.setAmount(null);
+
+        // Act & Assert
+        mockMvc.perform(post("/api/accounts/{accountId}/transactions", accountId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(transactionRequest)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void shouldGetTransactionById() throws Exception {
+        // Arrange
+        given(transactionService.getTransactionById(transactionId)).willReturn(transactionResponse);
+
+        // Act & Assert
+        mockMvc.perform(get("/api/transactions/{id}", transactionId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(transactionId.toString()))
+                .andExpect(jsonPath("$.amount").value("100.0"));
+    }
+
+    @Test
+    void shouldReturnNotFoundWhenTransactionDoesNotExist() throws Exception {
+        // Arrange
+        given(transactionService.getTransactionById(transactionId))
+                .willThrow(new ResourceNotFoundException("Transaction", "id", transactionId));
+
+        // Act & Assert
+        mockMvc.perform(get("/api/transactions/{id}", transactionId))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void shouldGetAccountTransactions() throws Exception {
+        // Arrange
+        when(transactionService.getAccountTransactions(eq(accountId), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(transactionResponse)));
+
+        // Act & Assert
+        mockMvc.perform(get("/api/accounts/{accountId}/transactions", accountId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].id").value(transactionId.toString()))
+                .andExpect(jsonPath("$.content[0].amount").value("100.0"));
+    }
+}d shouldSaveAccount() {
+        // Arrange
+        Account account = Account.builder()
+                .name("Test User")
+                .documentNumber("12345678901")
+                .balance(BigDecimal.ZERO)
+                .build();
+
+        // Act
+        Account savedAccount = accountRepository.save(account);
+
+        // Assert
+        assertThat(savedAccount).isNotNull();
+        assertThat(savedAccount.getId()).isNotNull();
+        assertThat(savedAccount.getName()).isEqualTo("Test User");
+        assertThat(savedAccount.getDocumentNumber()).isEqualTo("12345678901");
+        assertThat(savedAccount.getBalance()).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    @Test
+    void shouldFindByDocumentNumber() {
+        // Arrange
+        String documentNumber = "12345678901";
+        Account account = Account.builder()
+                .name("Test User")
+                .documentNumber(documentNumber)
+                .balance(BigDecimal.ZERO)
+                .build();
+        accountRepository.save(account);
+
+        // Act
+        Optional<Account> foundAccount = accountRepository.findByDocumentNumber(documentNumber);
+
+        // Assert
+        assertThat(foundAccount).isPresent();
+        assertThat(foundAccount.get().getDocumentNumber()).isEqualTo(documentNumber);
+    }
+
+    @Test
+    void shouldReturnTrueWhenDocumentNumberExists() {
+        // Arrange
+        String documentNumber = "12345678901";
+        Account account = Account.builder()
+                .name("Test User")
+                .documentNumber(documentNumber)
+                .balance(BigDecimal.ZERO)
+                .build();
+        accountRepository.save(account);
+
+        // Act
+        boolean exists = accountRepository.existsByDocumentNumber(documentNumber);
+
+        // Assert
+        assertThat(exists).isTrue();
+    }
+
+}
