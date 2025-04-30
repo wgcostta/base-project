@@ -1,4 +1,4 @@
-package com.project.case.config;
+package com.base.project.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
